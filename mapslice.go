@@ -1,0 +1,96 @@
+package mapslice
+
+import (
+	"github.com/puzpuzpuz/xsync/v3"
+)
+
+type Subscription[K comparable, V any] struct {
+	locker chan struct{}
+	signal chan struct{}
+	update map[K][]V
+	offset map[K]int
+}
+
+func (s Subscription[K, V]) set(key K, values []V) Subscription[K, V] {
+	if len(values) > 0 {
+		s.locker <- struct{}{}
+		i, ok := s.offset[key]
+		if ok {
+			s.update[key] = values[i:]
+			select {
+			case s.signal <- struct{}{}:
+			default:
+			}
+		}
+		<-s.locker
+	}
+	return s
+}
+
+func (s Subscription[K, V]) Load() (load [][]V) {
+	s.locker <- struct{}{}
+
+	for key, values := range s.update {
+		s.offset[key], load = len(values), append(load, values)
+	}
+
+	clear(s.update)
+
+	<-s.locker
+
+	return
+}
+
+func (s Subscription[K, V]) Ready() <-chan struct{} {
+	return s.signal
+}
+
+type Slice[K comparable, V any] struct {
+	values        []V
+	subscriptions []Subscription[K, V]
+}
+
+type MapSlice[K comparable, V any] struct {
+	storage *xsync.MapOf[K, Slice[K, V]]
+}
+
+func NewMapSlice[K comparable, V any]() *MapSlice[K, V] {
+	return &MapSlice[K, V]{
+		storage: xsync.NewMapOf[K, Slice[K, V]](),
+	}
+}
+
+func (m *MapSlice[K, V]) Append(key K, values ...V) {
+	m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
+		slice.values = append(slice.values, values...)
+		for _, s := range slice.subscriptions {
+			s.set(key, slice.values)
+		}
+		return slice, false
+	})
+}
+
+func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
+	s := Subscription[K, V]{
+		locker: make(chan struct{}, 1),
+		signal: make(chan struct{}, 1),
+		update: make(map[K][]V, len(keys)),
+		offset: make(map[K]int, len(keys)),
+	}
+
+	for _, key := range keys {
+		s.offset[key] = 0
+		m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
+			slice.subscriptions = append(slice.subscriptions, s.set(key, slice.values))
+			return slice, false
+		})
+	}
+
+	return s
+}
+
+func (m *MapSlice[K, V]) Delete(keys ...K) {
+	for _, key := range keys {
+		m.storage.Delete(key)
+	}
+}
