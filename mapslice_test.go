@@ -74,7 +74,7 @@ func TestMapSlice_Append(t *testing.T) {
 	m.Append(4, "4b", "4c")
 	m.Append(5, "5c", "5d")
 
-	m.Delete(1, 2, 3, 4, 5)
+	m.Delete(1, 2, 3)
 
 	select {
 	case <-s123.Ready():
@@ -91,4 +91,12 @@ func TestMapSlice_Append(t *testing.T) {
 	}
 
 	require.ElementsMatch(t, [][]string{{"4b", "4c"}, {"5c", "5d"}}, s145.Load())
+
+	s345 := m.Subscribe(3, 4, 5)
+
+	m.Unsubscribe(s123)
+	m.Unsubscribe(s145)
+	m.Unsubscribe(s345)
+
+	m.Delete(5, 4)
 }

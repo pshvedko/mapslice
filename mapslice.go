@@ -29,15 +29,11 @@ func (s Subscription[K, V]) set(key K, values []V) Subscription[K, V] {
 
 func (s Subscription[K, V]) Load() (load [][]V) {
 	s.locker <- struct{}{}
-
 	for key, values := range s.update {
 		s.offset[key], load = len(values), append(load, values)
 	}
-
 	clear(s.update)
-
 	<-s.locker
-
 	return
 }
 
@@ -79,6 +75,10 @@ func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
 	}
 
 	for _, key := range keys {
+		_, ok := s.offset[key]
+		if ok {
+			continue
+		}
 		s.offset[key] = 0
 		m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
 			slice.subscriptions = append(slice.subscriptions, s.set(key, slice.values))
@@ -87,6 +87,28 @@ func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
 	}
 
 	return s
+}
+
+func (m *MapSlice[K, V]) Unsubscribe(s Subscription[K, V]) {
+	for key := range s.offset {
+		m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
+			for i, x := range slice.subscriptions {
+				if x.signal == s.signal {
+					n := len(slice.subscriptions)
+					n--
+					slice.subscriptions[i] = slice.subscriptions[n]
+					slice.subscriptions = slice.subscriptions[:n]
+					break
+				}
+			}
+			return slice, false
+		})
+	}
+
+	close(s.locker)
+	close(s.signal)
+	clear(s.update)
+	clear(s.offset)
 }
 
 func (m *MapSlice[K, V]) Delete(keys ...K) {
