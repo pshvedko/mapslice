@@ -11,7 +11,7 @@ type Subscription[K comparable, V any] struct {
 	offset map[K]int
 }
 
-func (s Subscription[K, V]) set(key K, values []V) Subscription[K, V] {
+func (s Subscription[K, V]) Set(key K, values []V) {
 	if len(values) > 0 {
 		s.locker <- struct{}{}
 		i, ok := s.offset[key]
@@ -24,7 +24,6 @@ func (s Subscription[K, V]) set(key K, values []V) Subscription[K, V] {
 		}
 		<-s.locker
 	}
-	return s
 }
 
 func (s Subscription[K, V]) Load() (load [][]V) {
@@ -60,7 +59,7 @@ func (m *MapSlice[K, V]) Append(key K, values ...V) {
 	m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
 		slice.values = append(slice.values, values...)
 		for _, s := range slice.subscriptions {
-			s.set(key, slice.values)
+			s.Set(key, slice.values)
 		}
 		return slice, false
 	})
@@ -81,7 +80,8 @@ func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
 		}
 		s.offset[key] = 0
 		m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
-			slice.subscriptions = append(slice.subscriptions, s.set(key, slice.values))
+			s.Set(key, slice.values)
+			slice.subscriptions = append(slice.subscriptions, s)
 			return slice, false
 		})
 	}
