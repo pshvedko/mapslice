@@ -56,12 +56,12 @@ func NewMapSlice[K comparable, V any]() *MapSlice[K, V] {
 }
 
 func (m *MapSlice[K, V]) Append(key K, values ...V) {
-	m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
-		slice.values = append(slice.values, values...)
-		for _, s := range slice.subscriptions {
-			s.Set(key, slice.values)
+	m.storage.Compute(key, func(a Slice[K, V], loaded bool) (Slice[K, V], bool) {
+		a.values = append(a.values, values...)
+		for _, s := range a.subscriptions {
+			s.Set(key, a.values)
 		}
-		return slice, false
+		return a, false
 	})
 }
 
@@ -79,10 +79,10 @@ func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
 			continue
 		}
 		s.offset[key] = 0
-		m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
-			s.Set(key, slice.values)
-			slice.subscriptions = append(slice.subscriptions, s)
-			return slice, false
+		m.storage.Compute(key, func(a Slice[K, V], loaded bool) (Slice[K, V], bool) {
+			s.Set(key, a.values)
+			a.subscriptions = append(a.subscriptions, s)
+			return a, false
 		})
 	}
 
@@ -91,17 +91,17 @@ func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
 
 func (m *MapSlice[K, V]) Unsubscribe(s Subscription[K, V]) {
 	for key := range s.offset {
-		m.storage.Compute(key, func(slice Slice[K, V], loaded bool) (Slice[K, V], bool) {
-			for i, x := range slice.subscriptions {
+		m.storage.Compute(key, func(a Slice[K, V], loaded bool) (Slice[K, V], bool) {
+			for i, x := range a.subscriptions {
 				if x.signal == s.signal {
-					n := len(slice.subscriptions)
+					n := len(a.subscriptions)
 					n--
-					slice.subscriptions[i] = slice.subscriptions[n]
-					slice.subscriptions = slice.subscriptions[:n]
+					a.subscriptions[i] = a.subscriptions[n]
+					a.subscriptions = a.subscriptions[:n]
 					break
 				}
 			}
-			return slice, false
+			return a, false
 		})
 	}
 
