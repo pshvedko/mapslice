@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/pshvedko/mapslice"
 	"math/rand"
 	"net/http"
@@ -72,6 +71,5 @@ func main() {
 	health := grpchealth.NewStaticChecker(names...)
 	mux.Handle(grpchealth.NewHandler(health, compress))
 
-	fmt.Println("localhost:8080" + path + "Ping")
 	_ = http.ListenAndServe("localhost:8080", h2c.NewHandler(mux, &http2.Server{}))
 }
