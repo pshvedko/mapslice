@@ -24,7 +24,9 @@ func TestMapSlice_Append(t *testing.T) {
 		require.True(t, false)
 	}
 
-	require.ElementsMatch(t, [][]string{{"1a", "1b", "1c"}}, s123.Load())
+	_, a := s123.Load()
+
+	require.ElementsMatch(t, [][]string{{"1a", "1b", "1c"}}, a)
 
 	select {
 	case <-s123.Ready():
@@ -33,7 +35,9 @@ func TestMapSlice_Append(t *testing.T) {
 		require.True(t, true)
 	}
 
-	require.ElementsMatch(t, [][]string{}, s123.Load())
+	_, a = s123.Load()
+
+	require.ElementsMatch(t, [][]string{}, a)
 
 	m.Append(1, "1d")
 	m.Append(2, "2a")
@@ -53,7 +57,9 @@ func TestMapSlice_Append(t *testing.T) {
 		require.True(t, false)
 	}
 
-	require.ElementsMatch(t, [][]string{{"1d"}, {"2a", "2b", "2c"}, {"3a"}}, s123.Load())
+	_, a = s123.Load()
+
+	require.ElementsMatch(t, [][]string{{"1d"}, {"2a", "2b", "2c"}, {"3a"}}, a)
 
 	s145 := m.Subscribe(1, 4, 5)
 
@@ -66,7 +72,9 @@ func TestMapSlice_Append(t *testing.T) {
 		require.True(t, false)
 	}
 
-	require.ElementsMatch(t, [][]string{{"1a", "1b", "1c", "1d"}, {"4a"}, {"5a", "5b"}}, s145.Load())
+	_, a = s145.Load()
+
+	require.ElementsMatch(t, [][]string{{"1a", "1b", "1c", "1d"}, {"4a"}, {"5a", "5b"}}, a)
 
 	m.Append(1, "1a")
 	m.Append(2, "2a")
@@ -90,7 +98,9 @@ func TestMapSlice_Append(t *testing.T) {
 		require.True(t, false)
 	}
 
-	require.ElementsMatch(t, [][]string{{"4b", "4c"}, {"5c", "5d"}}, s145.Load())
+	_, a = s145.Load()
+
+	require.ElementsMatch(t, [][]string{{"4b", "4c"}, {"5c", "5d"}}, a)
 
 	s345 := m.Subscribe(3, 4, 5)
 

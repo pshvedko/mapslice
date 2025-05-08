@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package jerk.v1;
+
+option go_package = "github.com/pshvedko/mapslice/gen/jerk/v1;jerk";
+
+message PingRequest {
+  int64 timeout = 1;
+}
+
+message PingResponse {
+  uint64 index = 1;
+}
+
+message TraceRequest {
+  repeated int32 keys = 1;
+}
+
+message TraceResponse {
+  int32 key = 1;
+  repeated uint64 indexes = 2;
+}
+
+service JerkService {
+  rpc Ping(PingRequest) returns (PingResponse) {}
+  rpc Trace(TraceRequest) returns (stream TraceResponse) {}
+}
