@@ -26,10 +26,10 @@ func (s Subscription[K, V]) Set(key K, values []V) {
 	}
 }
 
-func (s Subscription[K, V]) Load() (values [][]V) {
+func (s Subscription[K, V]) Load() (keys []K, values [][]V) {
 	s.locker <- struct{}{}
 	for key, slice := range s.update {
-		values = append(values, slice)
+		keys, values = append(keys, key), append(values, slice)
 		s.offset[key] += len(slice)
 	}
 	clear(s.update)
