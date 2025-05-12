@@ -107,7 +107,7 @@ func TestMapSlice_Append(t *testing.T) {
 	require.ElementsMatch(t, []int{4, 5}, k)
 	require.ElementsMatch(t, [][]string{{"4b", "4c"}, {"5c", "5d"}}, v)
 
-	s345 := m.Subscribe(3, 4, 5)
+	s345 := m.Subscribe(3, 4, 5, 6)
 
 	m.Unsubscribe(s123)
 	m.Unsubscribe(s145)
