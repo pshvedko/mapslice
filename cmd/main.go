@@ -3,9 +3,14 @@ package main
 import (
 	"context"
 	"github.com/pshvedko/mapslice"
+	"github.com/pshvedko/mapslice/w2c"
+	"log"
 	"math/rand"
+	"net"
 	"net/http"
+	"os/signal"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -38,7 +43,7 @@ func (p *PingService) Trace(ctx context.Context, req *connect.Request[jerk.Trace
 				}
 			}
 		case <-ctx.Done():
-			return nil
+			return connect.NewWireError(connect.CodeAborted, http.ErrAbortHandler)
 		}
 	}
 }
@@ -57,6 +62,9 @@ func (p *PingService) Ping(ctx context.Context, req *connect.Request[jerk.PingRe
 }
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.TODO(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	mux := http.NewServeMux()
 	compress := connect.WithCompressMinBytes(1024)
 	service := &PingService{MapSlice: mapslice.NewMapSlice[int32, uint64]()}
@@ -71,5 +79,27 @@ func main() {
 	health := grpchealth.NewStaticChecker(names...)
 	mux.Handle(grpchealth.NewHandler(health, compress))
 
-	_ = http.ListenAndServe("localhost:8080", h2c.NewHandler(mux, &http2.Server{}))
+	w := w2c.NewHandler(h2c.NewHandler(mux, &http2.Server{}))
+	defer w.Wait()
+
+	s := http.Server{
+		Addr:        "localhost:8080",
+		Handler:     w,
+		BaseContext: func(net.Listener) context.Context { return ctx },
+	}
+
+	stop := context.AfterFunc(ctx, func() {
+		w.Add(1)
+		err := s.Shutdown(context.TODO())
+		if err != nil {
+			log.Println(err)
+		}
+		w.Done()
+	})
+	defer stop()
+
+	err := s.ListenAndServe()
+	if err != nil {
+		log.Println(err)
+	}
 }
