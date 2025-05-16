@@ -142,6 +142,8 @@ func TestMapSlice_SubscribeAndSwap(t *testing.T) {
 	m.Append(2, "2b")
 	m.Append(2, "2c")
 
+	m.Append(1, "1e", "1d")
+
 	m.Delete(1, 2, 3)
 
 	select {
@@ -153,5 +155,5 @@ func TestMapSlice_SubscribeAndSwap(t *testing.T) {
 
 	x = s123.Swap(x)
 
-	require.Equal(t, map[int][]string{2: {"2a", "2b", "2c"}}, x)
+	require.Equal(t, map[int][]string{1: {"1a", "1b", "1c", "1e", "1d"}, 2: {"2a", "2b", "2c"}}, x)
 }
