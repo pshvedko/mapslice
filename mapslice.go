@@ -36,6 +36,13 @@ func (s Subscription[K, V]) Ready() <-chan struct{} {
 	return s.signal
 }
 
+func (s Subscription[K, V]) Swap(m map[K][]V) map[K][]V {
+	clear(m)
+	x := <-s.holder
+	s.holder <- m
+	return x
+}
+
 type Slice[K comparable, V any] struct {
 	values        []V
 	subscriptions []Subscription[K, V]
@@ -59,6 +66,11 @@ func (m *MapSlice[K, V]) Append(key K, values ...V) {
 		}
 		return slice, false
 	})
+}
+
+func (m *MapSlice[K, V]) SubscribeAndSwap(keys ...K) (map[K][]V, Subscription[K, V]) {
+	sub := m.Subscribe(keys...)
+	return sub.Swap(make(map[K][]V, len(keys))), sub
 }
 
 func (m *MapSlice[K, V]) Subscribe(keys ...K) Subscription[K, V] {
