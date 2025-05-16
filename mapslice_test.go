@@ -8,7 +8,7 @@ import (
 	"github.com/pshvedko/mapslice"
 )
 
-func TestMapSlice_Append(t *testing.T) {
+func TestMapSlice_Subscribe(t *testing.T) {
 	m := mapslice.NewMapSlice[int, string]()
 
 	s123 := m.Subscribe(1, 2, 3)
@@ -114,4 +114,44 @@ func TestMapSlice_Append(t *testing.T) {
 	m.Unsubscribe(s345)
 
 	m.Delete(5, 4)
+}
+
+func TestMapSlice_SubscribeAndSwap(t *testing.T) {
+	m := mapslice.NewMapSlice[int, string]()
+
+	x, s123 := m.SubscribeAndSwap(1, 2, 3)
+
+	require.Equal(t, map[int][]string{}, x)
+
+	m.Append(1, "1a")
+	m.Append(1, "1b")
+	m.Append(1, "1c")
+
+	select {
+	case <-s123.Ready():
+		require.True(t, true)
+	default:
+		require.True(t, false)
+	}
+
+	x = s123.Swap(x)
+
+	require.Equal(t, map[int][]string{1: {"1a", "1b", "1c"}}, x)
+
+	m.Append(2, "2a")
+	m.Append(2, "2b")
+	m.Append(2, "2c")
+
+	m.Delete(1, 2, 3)
+
+	select {
+	case <-s123.Ready():
+		require.True(t, true)
+	default:
+		require.True(t, false)
+	}
+
+	x = s123.Swap(x)
+
+	require.Equal(t, map[int][]string{2: {"2a", "2b", "2c"}}, x)
 }
